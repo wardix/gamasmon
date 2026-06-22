@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "bun run src/server.ts",
     "start": "NODE_ENV=production bun run src/server.ts",
-    "cli": "bun run src/cli.ts",
     "build:frontend": "cd frontend && npm run build"
   },
   "dependencies": {
