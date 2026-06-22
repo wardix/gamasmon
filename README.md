@@ -8,8 +8,7 @@ Monitoring dashboard + Prometheus exporter untuk mendeteksi gangguan massal (Gam
 gamasmon/
 ├── src/
 │   ├── server.ts        # Hono backend: API + metrics + static files
-│   ├── metrics.ts       # Clustering logic + Prometheus format + JSON API
-│   └── cli.ts           # CLI tool (debug)
+│   └── metrics.ts       # Clustering logic + Prometheus format + JSON API
 ├── frontend/            # Vite + React + daisyUI dashboard
 │   ├── src/
 │   │   ├── App.tsx          # Main app
@@ -45,10 +44,18 @@ Salin `.env.example` menjadi `.env`, lalu sesuaikan:
 ```env
 PORT=3000
 KARMA_URL=https://nmx.example.com/karma/alerts.json?q=alertname%3Dfttx%20subscriber%20offline
-THRESHOLD_MINUTES=2
+THRESHOLD_SECONDS=120
 MIN_GROUP_SIZE=15
 MAX_ALERT_AGE_DAYS=7
 ```
+
+| Variable | Default | Fungsi |
+|----------|---------|--------|
+| `PORT` | `3000` | Port HTTP server |
+| `KARMA_URL` | `https://nmx.example.com/...` | URL sumber alert Karma |
+| `THRESHOLD_SECONDS` | `120` | Jarak waktu maks (detik) antar alert dalam satu cluster |
+| `MIN_GROUP_SIZE` | `15` | Jumlah minimum alert agar dianggap gangguan massal |
+| `MAX_ALERT_AGE_DAYS` | `7` | Umur maksimal alert yang diproses (hari) |
 
 ## Development
 
@@ -71,18 +78,12 @@ npm run dev
 
 Frontend berjalan di port 5173. API calls di-proxy ke backend via Vite.
 
-### CLI
-
-```bash
-bun run cli
-```
-
 ## Production
 
 Build frontend lalu jalankan backend:
 
 ```bash
-cd frontend && npm run build && cd ..
+cd frontend && npm install && npm run build && cd ..
 bun run start
 ```
 
