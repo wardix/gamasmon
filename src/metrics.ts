@@ -1,0 +1,222 @@
+type KarmaResponse = {
+  groups?: Record<string, Group>;
+};
+
+type Group = {
+  alerts?: Alert[];
+  shared?: {
+    labels?: Record<string, string>;
+  };
+};
+
+type Alert = {
+  startsAt: string;
+  labels: Record<string, string>;
+};
+
+export type ParsedAlert = {
+  startsAt: Date;
+  labels: Record<string, string>;
+  sharedLabels: Record<string, string>;
+};
+
+export type ClusterSummary = {
+  operator: string;
+  alertCount: number;
+  startedAt: string;
+  isMassOutage: boolean;
+  alerts: {
+    startsAt: string;
+    labels: Record<string, string>;
+  }[];
+};
+
+export type ClusterResponse = {
+  totalAlerts: number;
+  totalClusters: number;
+  massOutageCount: number;
+  operators: string[];
+  clusters: ClusterSummary[];
+  config: {
+    thresholdSeconds: number;
+    minGroupSize: number;
+    maxAlertAgeDays: number;
+  };
+  fetchedAt: string;
+};
+
+const DEFAULT_KARMA_URL =
+  "https://nmx.example.com/karma/alerts.json?q=alertname%3Dfttx%20subscriber%20offline";
+const DEFAULT_THRESHOLD_SECONDS = 120;
+const DEFAULT_MIN_GROUP_SIZE = 15;
+const DEFAULT_MAX_ALERT_AGE_DAYS = 7;
+
+function getConfig() {
+  const thresholdSeconds = Number(Bun.env.THRESHOLD_SECONDS ?? String(DEFAULT_THRESHOLD_SECONDS));
+  const minGroupSize = Number(Bun.env.MIN_GROUP_SIZE ?? String(DEFAULT_MIN_GROUP_SIZE));
+  const maxAlertAgeDays = Number(Bun.env.MAX_ALERT_AGE_DAYS ?? String(DEFAULT_MAX_ALERT_AGE_DAYS));
+  return { thresholdSeconds, minGroupSize, maxAlertAgeDays };
+}
+
+function escapeLabelValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+}
+
+function formatStartedAt(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+function buildClusters(alerts: ParsedAlert[]): ParsedAlert[][] {
+  const { thresholdSeconds } = getConfig();
+  const thresholdMs = thresholdSeconds * 1000;
+  const sortedAlerts = [...alerts].sort(
+    (a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
+  );
+
+  const clusters: ParsedAlert[][] = [];
+  for (const alert of sortedAlerts) {
+    const current = clusters.at(-1);
+    if (!current) {
+      clusters.push([alert]);
+      continue;
+    }
+
+    const previous = current.at(-1)!;
+    if (alert.startsAt.getTime() - previous.startsAt.getTime() <= thresholdMs) {
+      current.push(alert);
+    } else {
+      clusters.push([alert]);
+    }
+  }
+
+  return clusters;
+}
+
+export async function getClusteredAlerts(): Promise<{
+  clusters: ParsedAlert[][];
+}> {
+  const karmaUrl = Bun.env.KARMA_URL ?? DEFAULT_KARMA_URL;
+  const { maxAlertAgeDays } = getConfig();
+  const now = Date.now();
+  const maxAgeMs = maxAlertAgeDays * 24 * 60 * 60 * 1000;
+
+  const response = await fetch(karmaUrl);
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as KarmaResponse;
+  const groups = Object.values(data.groups ?? {});
+
+  const alertsByOperator: Record<string, ParsedAlert[]> = {};
+  for (const group of groups) {
+    for (const alert of group.alerts ?? []) {
+      const startsAt = new Date(alert.startsAt);
+      
+      // Filter by age
+      if (now - startsAt.getTime() > maxAgeMs) {
+        continue;
+      }
+
+      const labels = { ...(group.shared?.labels ?? {}), ...(alert.labels ?? {}) };
+      const operator = labels.operator ?? "unknown";
+      
+      if (!alertsByOperator[operator]) {
+        alertsByOperator[operator] = [];
+      }
+      
+      alertsByOperator[operator].push({
+        startsAt,
+        labels,
+        sharedLabels: group.shared?.labels ?? {},
+      });
+    }
+  }
+
+  const allClusters: ParsedAlert[][] = [];
+  for (const operator in alertsByOperator) {
+    const operatorClusters = buildClusters(alertsByOperator[operator]);
+    allClusters.push(...operatorClusters);
+  }
+
+  return { clusters: allClusters };
+}
+
+export async function getClusterResponse(): Promise<ClusterResponse> {
+  const config = getConfig();
+  const { clusters } = await getClusteredAlerts();
+
+  const clusterSummaries: ClusterSummary[] = clusters.map((cluster) => {
+    const first = cluster[0];
+    const operator = first.labels.operator ?? "unknown";
+    return {
+      operator,
+      alertCount: cluster.length,
+      startedAt: first.startsAt.toISOString(),
+      isMassOutage: cluster.length > config.minGroupSize,
+      alerts: cluster.map((a) => ({
+        startsAt: a.startsAt.toISOString(),
+        labels: a.labels,
+      })),
+    };
+  });
+
+  // Sort: mass outages first, then by alert count descending
+  clusterSummaries.sort((a, b) => {
+    if (a.isMassOutage !== b.isMassOutage) return a.isMassOutage ? -1 : 1;
+    return b.alertCount - a.alertCount;
+  });
+
+  const totalAlerts = clusterSummaries.reduce((sum, c) => sum + c.alertCount, 0);
+  const massOutageCount = clusterSummaries.filter((c) => c.isMassOutage).length;
+  const operators = [...new Set(clusterSummaries.map((c) => c.operator))];
+
+  return {
+    totalAlerts,
+    totalClusters: clusterSummaries.length,
+    massOutageCount,
+    operators,
+    clusters: clusterSummaries,
+    config: {
+      thresholdSeconds: config.thresholdSeconds,
+      minGroupSize: config.minGroupSize,
+      maxAlertAgeDays: config.maxAlertAgeDays,
+    },
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+export async function buildMetrics(): Promise<string> {
+  const { minGroupSize } = getConfig();
+  const { clusters } = await getClusteredAlerts();
+
+  const qualifyingClusters = clusters.filter((cluster) => cluster.length > minGroupSize);
+
+  const lines = [
+    "# HELP fttx_mass_outage_active Whether a mass outage is currently detected.",
+    "# TYPE fttx_mass_outage_active gauge",
+  ];
+
+  for (const cluster of qualifyingClusters) {
+    const first = cluster[0];
+    const operator = first.labels.operator ?? "unknown";
+    const allLabels = { ...first.sharedLabels, operator };
+    
+    const metricLabels = Object.entries(allLabels)
+      .filter(([k]) => k !== "alertname" && k !== "severity")
+      .map(([k, v]) => `${k}="${escapeLabelValue(v)}"`);
+    
+    metricLabels.push(`started_at="${escapeLabelValue(formatStartedAt(first.startsAt))}"`);
+    
+    lines.push(
+      `fttx_mass_outage_active{${metricLabels.join(",")}} 1`,
+    );
+  }
+
+  return lines.join("\n") + "\n";
+}
