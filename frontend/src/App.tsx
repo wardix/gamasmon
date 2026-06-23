@@ -19,7 +19,6 @@ function App() {
 
   // Filters
   const [selectedOperator, setSelectedOperator] = useState<string | null>(null);
-  const [massOutageOnly, setMassOutageOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -64,7 +63,6 @@ function App() {
 
   const filteredClusters = data?.clusters.filter((cluster) => {
     if (selectedOperator && cluster.operator !== selectedOperator) return false;
-    if (massOutageOnly && !cluster.isMassOutage) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchOperator = cluster.operator.toLowerCase().includes(query);
@@ -137,8 +135,6 @@ function App() {
             operators={data.operators}
             selectedOperator={selectedOperator}
             onSelectOperator={setSelectedOperator}
-            massOutageOnly={massOutageOnly}
-            onToggleMassOutage={() => setMassOutageOnly(!massOutageOnly)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />
@@ -147,7 +143,7 @@ function App() {
         {filteredClusters.length > 0 ? (
           <ClusterGrid clusters={filteredClusters} />
         ) : (
-          data && <EmptyState hasFilters={!!selectedOperator || massOutageOnly || !!searchQuery} />
+          data && <EmptyState hasFilters={!!selectedOperator || !!searchQuery} />
         )}
       </div>
     </div>

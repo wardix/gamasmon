@@ -6,31 +6,17 @@ type StatsRowProps = {
 
 export function StatsRow({ data }: StatsRowProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       <div className="card bg-base-200/50 border border-base-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
         <div className="card-body p-5">
           <p className="text-xs font-medium text-base-content/40 uppercase tracking-wider flex items-center gap-1.5">
-            📊 Total Alerts
+            🔴 Gangguan Massal
           </p>
-          <p className="text-3xl font-extrabold text-primary tracking-tight">
-            {data.totalAlerts}
-          </p>
-          <p className="text-xs text-base-content/40 font-mono">
-            {data.totalClusters} cluster(s)
-          </p>
-        </div>
-      </div>
-
-      <div className="card bg-base-200/50 border border-base-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
-        <div className="card-body p-5">
-          <p className="text-xs font-medium text-base-content/40 uppercase tracking-wider flex items-center gap-1.5">
-            🔴 Mass Outages
-          </p>
-          <p className={`text-3xl font-extrabold tracking-tight ${data.massOutageCount > 0 ? 'text-error' : 'text-success'}`}>
-            {data.massOutageCount}
+          <p className={`text-3xl font-extrabold tracking-tight ${data.totalClusters > 0 ? 'text-error' : 'text-success'}`}>
+            {data.totalClusters}
           </p>
           <p className="text-xs text-base-content/40 font-mono">
-            {data.massOutageCount > 0 ? 'GANGGUAN MASSAL' : 'All clear'}
+            {data.totalAlerts} total alerts
           </p>
         </div>
       </div>

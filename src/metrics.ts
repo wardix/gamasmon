@@ -24,7 +24,6 @@ export type ClusterSummary = {
   operator: string;
   alertCount: number;
   startedAt: string;
-  isMassOutage: boolean;
   alerts: {
     startsAt: string;
     labels: Record<string, string>;
@@ -34,7 +33,6 @@ export type ClusterSummary = {
 export type ClusterResponse = {
   totalAlerts: number;
   totalClusters: number;
-  massOutageCount: number;
   operators: string[];
   clusters: ClusterSummary[];
   config: {
@@ -151,35 +149,31 @@ export async function getClusterResponse(): Promise<ClusterResponse> {
   const config = getConfig();
   const { clusters } = await getClusteredAlerts();
 
-  const clusterSummaries: ClusterSummary[] = clusters.map((cluster) => {
-    const first = cluster[0];
-    const operator = first.labels.operator ?? "unknown";
-    return {
-      operator,
-      alertCount: cluster.length,
-      startedAt: first.startsAt.toISOString(),
-      isMassOutage: cluster.length > config.minGroupSize,
-      alerts: cluster.map((a) => ({
-        startsAt: a.startsAt.toISOString(),
-        labels: a.labels,
-      })),
-    };
-  });
+  const clusterSummaries: ClusterSummary[] = clusters
+    .filter((cluster) => cluster.length > config.minGroupSize)
+    .map((cluster) => {
+      const first = cluster[0];
+      const operator = first.labels.operator ?? "unknown";
+      return {
+        operator,
+        alertCount: cluster.length,
+        startedAt: first.startsAt.toISOString(),
+        alerts: cluster.map((a) => ({
+          startsAt: a.startsAt.toISOString(),
+          labels: a.labels,
+        })),
+      };
+    });
 
-  // Sort: mass outages first, then by alert count descending
-  clusterSummaries.sort((a, b) => {
-    if (a.isMassOutage !== b.isMassOutage) return a.isMassOutage ? -1 : 1;
-    return b.alertCount - a.alertCount;
-  });
+  // Sort by alert count descending
+  clusterSummaries.sort((a, b) => b.alertCount - a.alertCount);
 
   const totalAlerts = clusterSummaries.reduce((sum, c) => sum + c.alertCount, 0);
-  const massOutageCount = clusterSummaries.filter((c) => c.isMassOutage).length;
   const operators = [...new Set(clusterSummaries.map((c) => c.operator))];
 
   return {
     totalAlerts,
     totalClusters: clusterSummaries.length,
-    massOutageCount,
     operators,
     clusters: clusterSummaries,
     config: {

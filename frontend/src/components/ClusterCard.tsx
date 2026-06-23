@@ -37,11 +37,10 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const filteredLabelKeys = ['alertname', 'severity'];
-  const borderColor = cluster.isMassOutage ? 'border-l-error' : 'border-l-primary';
 
   return (
     <div
-      className={`card bg-base-200/50 border border-base-300 border-l-4 ${borderColor} shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden animate-fade-slide-in`}
+      className="card bg-base-200/50 border border-base-300 border-l-4 border-l-error shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden animate-fade-slide-in"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       {/* Header - clickable */}
@@ -52,19 +51,17 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
         <div className="flex-1 min-w-0">
           {/* Top row: badges */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="badge badge-error badge-sm font-bold uppercase tracking-wider animate-pulse-badge">
+              ⚠ Gangguan Massal
+            </span>
             <span className="badge badge-primary badge-outline badge-sm font-semibold">
               {cluster.operator}
             </span>
-            {cluster.isMassOutage && (
-              <span className="badge badge-error badge-sm font-bold uppercase tracking-wider animate-pulse-badge">
-                ⚠ Gangguan Massal
-              </span>
-            )}
           </div>
 
           {/* Alert count */}
           <div className="flex items-baseline gap-3">
-            <span className={`text-3xl font-extrabold tracking-tight ${cluster.isMassOutage ? 'text-error' : ''}`}>
+            <span className="text-3xl font-extrabold tracking-tight text-error">
               {cluster.alertCount}
             </span>
             <span className="text-sm text-base-content/40">alerts</span>

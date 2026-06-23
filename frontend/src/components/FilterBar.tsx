@@ -2,8 +2,6 @@ type FilterBarProps = {
   operators: string[];
   selectedOperator: string | null;
   onSelectOperator: (op: string | null) => void;
-  massOutageOnly: boolean;
-  onToggleMassOutage: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
 };
@@ -12,8 +10,6 @@ export function FilterBar({
   operators,
   selectedOperator,
   onSelectOperator,
-  massOutageOnly,
-  onToggleMassOutage,
   searchQuery,
   onSearchChange,
 }: FilterBarProps) {
@@ -38,13 +34,6 @@ export function FilterBar({
       </div>
 
       <div className="divider divider-horizontal mx-0 h-6" />
-
-      <button
-        className={`btn btn-xs ${massOutageOnly ? 'btn-error' : 'btn-ghost border-error/20'}`}
-        onClick={onToggleMassOutage}
-      >
-        🔴 Mass Outage Only
-      </button>
 
       <input
         type="text"
