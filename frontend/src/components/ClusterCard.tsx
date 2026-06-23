@@ -21,16 +21,10 @@ function getRelativeTime(dateStr: string): string {
   return 'just now';
 }
 
-function formatAbsoluteTime(dateStr: string): string {
+function formatDateTime(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleString('id-ID', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export function ClusterCard({ cluster, index }: ClusterCardProps) {
@@ -71,7 +65,7 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
           <p className="text-xs text-base-content/40 font-mono mt-2">
             <span className="text-base-content/60">{getRelativeTime(cluster.startedAt)}</span>
             {' · '}
-            {formatAbsoluteTime(cluster.startedAt)}
+            {formatDateTime(cluster.startedAt)}
           </p>
         </div>
 
@@ -89,11 +83,7 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
           </p>
           <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto alert-list-scroll">
             {cluster.alerts.map((alert, i) => {
-              const time = new Date(alert.startsAt).toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              });
+              const time = formatDateTime(alert.startsAt);
               const labels = Object.entries(alert.labels).filter(
                 ([k]) => !filteredLabelKeys.includes(k)
               );
