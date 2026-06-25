@@ -20,6 +20,7 @@ function App() {
   // Filters
   const [selectedOperator, setSelectedOperator] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hideAcked, setHideAcked] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -61,8 +62,35 @@ function App() {
     fetchData();
   };
 
+  const handleAck = async (operator: string, startedAt: string) => {
+    try {
+      await fetch('/api/ack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operator, startedAt }),
+      });
+      fetchData();
+    } catch {
+      // Silently fail, next refresh will sync
+    }
+  };
+
+  const handleUnack = async (operator: string, startedAt: string) => {
+    try {
+      await fetch('/api/ack', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operator, startedAt }),
+      });
+      fetchData();
+    } catch {
+      // Silently fail, next refresh will sync
+    }
+  };
+
   const filteredClusters = data?.clusters.filter((cluster) => {
     if (selectedOperator && cluster.operator !== selectedOperator) return false;
+    if (hideAcked && cluster.acked) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchOperator = cluster.operator.toLowerCase().includes(query);
@@ -137,13 +165,19 @@ function App() {
             onSelectOperator={setSelectedOperator}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            hideAcked={hideAcked}
+            onToggleHideAcked={() => setHideAcked(!hideAcked)}
           />
         )}
 
         {filteredClusters.length > 0 ? (
-          <ClusterGrid clusters={filteredClusters} />
+          <ClusterGrid
+            clusters={filteredClusters}
+            onAck={handleAck}
+            onUnack={handleUnack}
+          />
         ) : (
-          data && <EmptyState hasFilters={!!selectedOperator || !!searchQuery} />
+          data && <EmptyState hasFilters={!!selectedOperator || !!searchQuery || hideAcked} />
         )}
       </div>
     </div>

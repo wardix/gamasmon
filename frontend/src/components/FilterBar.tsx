@@ -4,6 +4,8 @@ type FilterBarProps = {
   onSelectOperator: (op: string | null) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  hideAcked: boolean;
+  onToggleHideAcked: () => void;
 };
 
 export function FilterBar({
@@ -12,6 +14,8 @@ export function FilterBar({
   onSelectOperator,
   searchQuery,
   onSearchChange,
+  hideAcked,
+  onToggleHideAcked,
 }: FilterBarProps) {
   return (
     <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -34,6 +38,13 @@ export function FilterBar({
       </div>
 
       <div className="divider divider-horizontal mx-0 h-6" />
+
+      <button
+        className={`btn btn-xs ${hideAcked ? 'btn-success' : 'btn-ghost border-success/20'}`}
+        onClick={onToggleHideAcked}
+      >
+        {hideAcked ? '✓ Hide Acked' : 'Hide Acked'}
+      </button>
 
       <input
         type="text"

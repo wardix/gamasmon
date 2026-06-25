@@ -4,6 +4,8 @@ import type { ClusterSummary } from '../types';
 type ClusterCardProps = {
   cluster: ClusterSummary;
   index: number;
+  onAck: () => void;
+  onUnack: () => void;
 };
 
 function getRelativeTime(dateStr: string): string {
@@ -27,14 +29,16 @@ function formatDateTime(dateStr: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export function ClusterCard({ cluster, index }: ClusterCardProps) {
+export function ClusterCard({ cluster, index, onAck, onUnack }: ClusterCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const filteredLabelKeys = ['alertname', 'severity'];
+  const borderColor = cluster.acked ? 'border-l-success' : 'border-l-error';
+  const cardOpacity = cluster.acked ? 'opacity-60' : '';
 
   return (
     <div
-      className="card bg-base-200/50 border border-base-300 border-l-4 border-l-error shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden animate-fade-slide-in"
+      className={`card bg-base-200/50 border border-base-300 border-l-4 ${borderColor} shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden animate-fade-slide-in ${cardOpacity}`}
       style={{ animationDelay: `${index * 60}ms` }}
     >
       {/* Header - clickable */}
@@ -45,9 +49,15 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
         <div className="flex-1 min-w-0">
           {/* Top row: badges */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className="badge badge-error badge-sm font-bold uppercase tracking-wider animate-pulse-badge">
-              ⚠ Gangguan Massal
-            </span>
+            {cluster.acked ? (
+              <span className="badge badge-success badge-sm font-bold uppercase tracking-wider">
+                ✓ Acknowledged
+              </span>
+            ) : (
+              <span className="badge badge-error badge-sm font-bold uppercase tracking-wider animate-pulse-badge">
+                ⚠ Gangguan Massal
+              </span>
+            )}
             <span className="badge badge-primary badge-outline badge-sm font-semibold">
               {cluster.operator}
             </span>
@@ -55,7 +65,7 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
 
           {/* Alert count */}
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-extrabold tracking-tight text-error">
+            <span className={`text-3xl font-extrabold tracking-tight ${cluster.acked ? 'text-base-content/50' : 'text-error'}`}>
               {cluster.alertCount}
             </span>
             <span className="text-sm text-base-content/40">alerts</span>
@@ -67,12 +77,39 @@ export function ClusterCard({ cluster, index }: ClusterCardProps) {
             {' · '}
             {formatDateTime(cluster.startedAt)}
           </p>
+
+          {/* Ack info */}
+          {cluster.acked && cluster.ackedAt && (
+            <p className="text-xs text-success/60 font-mono mt-1">
+              acked {formatDateTime(cluster.ackedAt)}
+              {cluster.ackedBy && ` by ${cluster.ackedBy}`}
+            </p>
+          )}
         </div>
 
-        {/* Expand icon */}
-        <button className={`btn btn-ghost btn-xs btn-square mt-1 transition-transform ${expanded ? 'rotate-180' : ''}`}>
-          ▾
-        </button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 mt-1 shrink-0">
+          {cluster.acked ? (
+            <button
+              className="btn btn-ghost btn-xs text-base-content/40 hover:text-error"
+              onClick={(e) => { e.stopPropagation(); onUnack(); }}
+              title="Un-acknowledge"
+            >
+              ✕
+            </button>
+          ) : (
+            <button
+              className="btn btn-success btn-xs btn-outline"
+              onClick={(e) => { e.stopPropagation(); onAck(); }}
+              title="Acknowledge"
+            >
+              ✓ Ack
+            </button>
+          )}
+          <button className={`btn btn-ghost btn-xs btn-square transition-transform ${expanded ? 'rotate-180' : ''}`}>
+            ▾
+          </button>
+        </div>
       </div>
 
       {/* Expandable detail */}

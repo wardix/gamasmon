@@ -24,6 +24,9 @@ export type ClusterSummary = {
   operator: string;
   alertCount: number;
   startedAt: string;
+  acked: boolean;
+  ackedAt?: string;
+  ackedBy?: string;
   alerts: {
     startsAt: string;
     labels: Record<string, string>;
@@ -148,16 +151,24 @@ export async function getClusteredAlerts(): Promise<{
 export async function getClusterResponse(): Promise<ClusterResponse> {
   const config = getConfig();
   const { clusters } = await getClusteredAlerts();
+  const { getAckedSet, buildAckKey } = await import("./ack");
+  const ackedSet = await getAckedSet();
 
   const clusterSummaries: ClusterSummary[] = clusters
     .filter((cluster) => cluster.length > config.minGroupSize)
     .map((cluster) => {
       const first = cluster[0];
       const operator = first.labels.operator ?? "unknown";
+      const startedAt = first.startsAt.toISOString();
+      const ackKey = buildAckKey(operator, startedAt);
+      const ackInfo = ackedSet.get(ackKey);
       return {
         operator,
         alertCount: cluster.length,
-        startedAt: first.startsAt.toISOString(),
+        startedAt,
+        acked: !!ackInfo,
+        ackedAt: ackInfo?.ackedAt,
+        ackedBy: ackInfo?.ackedBy,
         alerts: cluster.map((a) => ({
           startsAt: a.startsAt.toISOString(),
           labels: a.labels,
@@ -165,8 +176,11 @@ export async function getClusterResponse(): Promise<ClusterResponse> {
       };
     });
 
-  // Sort by alert count descending
-  clusterSummaries.sort((a, b) => b.alertCount - a.alertCount);
+  // Sort: unacked first, then by alert count descending
+  clusterSummaries.sort((a, b) => {
+    if (a.acked !== b.acked) return a.acked ? 1 : -1;
+    return b.alertCount - a.alertCount;
+  });
 
   const totalAlerts = clusterSummaries.reduce((sum, c) => sum + c.alertCount, 0);
   const operators = [...new Set(clusterSummaries.map((c) => c.operator))];

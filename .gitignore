@@ -3,3 +3,4 @@ node_modules/
 *.log
 frontend/dist/
 frontend/node_modules/
+ack.json

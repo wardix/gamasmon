@@ -21,6 +21,38 @@ app.get("/api/clusters", async (c) => {
   }
 });
 
+// Ack a cluster
+app.post("/api/ack", async (c) => {
+  try {
+    const { operator, startedAt, ackedBy } = await c.req.json();
+    if (!operator || !startedAt) {
+      return c.json({ error: "operator and startedAt are required" }, 400);
+    }
+    const { ackCluster } = await import("./ack");
+    await ackCluster(operator, startedAt, ackedBy);
+    return c.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    return c.json({ error: message }, 500);
+  }
+});
+
+// Un-ack a cluster
+app.delete("/api/ack", async (c) => {
+  try {
+    const { operator, startedAt } = await c.req.json();
+    if (!operator || !startedAt) {
+      return c.json({ error: "operator and startedAt are required" }, 400);
+    }
+    const { unackCluster } = await import("./ack");
+    await unackCluster(operator, startedAt);
+    return c.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    return c.json({ error: message }, 500);
+  }
+});
+
 // Prometheus metrics
 app.get("/metrics", async (c) => {
   try {
