@@ -62,12 +62,12 @@ function App() {
     fetchData();
   };
 
-  const handleAck = async (operator: string, startedAt: string) => {
+  const handleAck = async (operator: string, startedAt: string, ackedBy?: string) => {
     try {
       await fetch('/api/ack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operator, startedAt }),
+        body: JSON.stringify({ operator, startedAt, ackedBy }),
       });
       fetchData();
     } catch {

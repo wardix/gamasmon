@@ -3,7 +3,7 @@ import { ClusterCard } from './ClusterCard';
 
 type ClusterGridProps = {
   clusters: ClusterSummary[];
-  onAck: (operator: string, startedAt: string) => void;
+  onAck: (operator: string, startedAt: string, ackedBy?: string) => void;
   onUnack: (operator: string, startedAt: string) => void;
 };
 
@@ -15,7 +15,7 @@ export function ClusterGrid({ clusters, onAck, onUnack }: ClusterGridProps) {
           key={`${cluster.operator}-${cluster.startedAt}-${index}`}
           cluster={cluster}
           index={index}
-          onAck={() => onAck(cluster.operator, cluster.startedAt)}
+          onAck={(ackedBy) => onAck(cluster.operator, cluster.startedAt, ackedBy)}
           onUnack={() => onUnack(cluster.operator, cluster.startedAt)}
         />
       ))}
